@@ -44,7 +44,24 @@ The extension listens for YouTube pages to load and then triggers a sequence of 
 The extension requires the following permissions:
 - Access to YouTube pages for modifying audio settings.
 
-## Privacy
-This extension does not collect or use any personal data. It operates entirely within your browser.
+
+## Privacy Policy for YouTube Original Audio Track
+
+Effective date: May 12, 2024
+
+1. Introduction:
+   - Our extension, YouTube Original Audio Track, enhances the user experience on YouTube by setting videos to play in their original audio track automatically. This Privacy Policy explains our policy regarding any information that could be associated with or used to identify you ("Personal Information").
+
+2. Personal Information We Do Not Collect:
+   - We do not collect any Personal Information using our extension. The extension does not monitor, store, or transmit any data about your browsing habits, location, or any other aspect of your usage.
+
+3. Data Usage:
+   - Our extension does not require or use data of any kind. Its functionality is strictly limited to modifying YouTube video settings within your browser, and it operates entirely client-side without any data being sent back to any servers.
+
+4. Changes to This Privacy Policy:
+   - We may update our Privacy Policy from time to time. You are advised to review this page periodically for any changes.
+
+This privacy policy is generated and maintained with the utmost respect for your privacy and does not imply any data collection whatsoever.
+
 
 
