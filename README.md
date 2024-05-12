@@ -45,7 +45,7 @@ The extension requires the following permissions:
 - Access to YouTube pages for modifying audio settings.
 
 
-## Privacy Policy for YouTube Original Audio Track
+## Privacy Policy 
 
 Effective date: May 12, 2024
 
