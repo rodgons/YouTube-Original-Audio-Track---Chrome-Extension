@@ -3,10 +3,7 @@
   "name": "YouTube Original Audio Track ",
   "version": "1.0",
   "description": "Automatically sets the YouTube audio track to the original language.",
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
+  "permissions": [],
   "background": {
     "service_worker": "background.js"
   },
