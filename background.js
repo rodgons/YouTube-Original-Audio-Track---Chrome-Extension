@@ -1,3 +1,5 @@
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Extension installed and ready to fix YouTube audio tracks!");
+  chrome.storage.sync.set({ enabled: true }, function () {
+    console.log("Extension installed and enabled by default");
+  });
 });

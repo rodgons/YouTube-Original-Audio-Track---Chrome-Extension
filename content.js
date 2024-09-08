@@ -47,7 +47,7 @@ const originalTranslations = {
   kk: "түпнұсқа",
   hy: "բնօրինակ",
   km: "ដើម",
-  my: "မူရင်း",
+  my: "မူရ်း",
   si: "මුල්",
   am: "የመጀመሪያው",
   ne: "मौलिक",
@@ -122,6 +122,32 @@ const originalTranslations = {
   "zh-tw": "原始",
 };
 
+let isExtensionEnabled = true;
+
+// Function to check if the extension is enabled
+function checkExtensionStatus(callback) {
+  chrome.storage.sync.get("enabled", function (data) {
+    isExtensionEnabled = data.enabled !== false;
+    if (callback) callback(isExtensionEnabled);
+  });
+}
+
+// Listen for messages from popup.js
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  if (request.action === "toggleExtension") {
+    isExtensionEnabled = request.enabled;
+    if (!isExtensionEnabled) {
+      // If disabled, remove any existing observers
+      if (window.youtubeOriginalAudioObserver) {
+        window.youtubeOriginalAudioObserver.disconnect();
+      }
+    } else {
+      // If enabled, start observing again
+      startObserving();
+    }
+  }
+});
+
 function waitForElement(selector, callback) {
   let observer = new MutationObserver((mutations, me) => {
     let element = document.querySelector(selector);
@@ -135,9 +161,13 @@ function waitForElement(selector, callback) {
     childList: true,
     subtree: true,
   });
+
+  return observer;
 }
 
 function fixAudioTrack(settingsButton) {
+  if (!isExtensionEnabled) return;
+
   settingsButton.click();
 
   setTimeout(() => {
@@ -169,9 +199,9 @@ function fixAudioTrack(settingsButton) {
       setTimeout(() => {
         const audioOptions = document.querySelectorAll(".ytp-menuitem");
         let selectedOption = null;
-
-        // Try to find the original audio or the one with the most words
+        let longestOption = null;
         let maxWords = 0;
+
         for (const option of audioOptions) {
           const content = option.querySelector(".ytp-menuitem-content");
           if (content) {
@@ -188,11 +218,17 @@ function fixAudioTrack(settingsButton) {
               break;
             }
 
+            // Keep track of the option with the longest description
             if (words.length > maxWords) {
               maxWords = words.length;
-              selectedOption = option;
+              longestOption = option;
             }
           }
+        }
+
+        // If no "original" option was found, use the longest option
+        if (!selectedOption && longestOption) {
+          selectedOption = longestOption;
         }
 
         // Click the selected option
@@ -235,4 +271,16 @@ function fixAudioTrack(settingsButton) {
   }, 100);
 }
 
-waitForElement(".ytp-settings-button", fixAudioTrack);
+function startObserving() {
+  checkExtensionStatus((enabled) => {
+    if (enabled) {
+      window.youtubeOriginalAudioObserver = waitForElement(
+        ".ytp-settings-button",
+        fixAudioTrack
+      );
+    }
+  });
+}
+
+// Start observing when the content script loads
+startObserving();

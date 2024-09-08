@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
   "name": "YouTube Original Audio Track ",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Automatically sets the YouTube audio track to the original language.",
-  "permissions": [],
+  "permissions": [
+    "storage"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -19,7 +21,7 @@
     }
   ],
   "action": {
-    "default_popup": "",
+    "default_popup": "popup.html",
     "default_icon": {
       "128": "assets/icon_128x128.png",
       "48": "assets/icon_48x48.png",
