@@ -42,3 +42,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 });
+
+// Add this function to help debug issues
+function debugAudioTracks() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    chrome.tabs.sendMessage(
+      tabs[0].id,
+      { action: "debugAudioTracks" },
+      function (response) {
+        console.log("Available audio tracks:", response);
+      }
+    );
+  });
+}

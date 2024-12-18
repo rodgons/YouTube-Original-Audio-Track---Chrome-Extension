@@ -1,3 +1,5 @@
+let hasProcessedAudio = false;
+
 const originalTranslations = {
   en: "original",
   es: "original",
@@ -149,31 +151,31 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
       startObserving();
     }
   }
-});
-
-function waitForElement(selector, callback) {
-  let observer = new MutationObserver((mutations, me) => {
-    let element = document.querySelector(selector);
-    if (element) {
-      me.disconnect();
-      callback(element);
+  if (request.action === "debugAudioTracks") {
+    const settingsButton = document.querySelector(".ytp-settings-button");
+    if (settingsButton) {
+      settingsButton.click();
+      setTimeout(() => {
+        const menuItems = document.querySelectorAll(
+          ".ytp-panel-menu .ytp-menuitem"
+        );
+        const audioTrackItem = findAudioTrackMenuItem(menuItems);
+        if (audioTrackItem) {
+          audioTrackItem.click();
+          setTimeout(() => {
+            const audioOptions = document.querySelectorAll(
+              '.ytp-menuitem, .ytp-panel-menu .ytp-menuitem, [role="menuitem"]'
+            );
+            const options = Array.from(audioOptions).map((o) => o.textContent);
+            sendResponse({ options });
+            closeMenu();
+          }, 50);
+        }
+      }, 50);
     }
-  });
-
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
-
-  // Check immediately
-  let element = document.querySelector(selector);
-  if (element) {
-    observer.disconnect();
-    callback(element);
+    return true; // Keep the message channel open for the async response
   }
-
-  return observer;
-}
+});
 
 function findAudioTrackMenuItem(menuItems) {
   if (!menuItems?.length) return null;
@@ -253,7 +255,7 @@ function findAudioTrackMenuItem(menuItems) {
     pa2: "ਟ੍ਰੈਕ",
 
     // Tamil
-    ta: "ஆடியோ டிராக்",
+    ta: "ஆடியோ டிரா��்",
     ta1: "ஆடியோ",
     ta2: "டிராக்",
 
@@ -338,11 +340,6 @@ function findAudioTrackMenuItem(menuItems) {
     si: "ශ්‍රව්‍ය මාර්ගය",
     si1: "ශ්‍රව්‍ය",
     si2: "මාර්ගය",
-
-    // Hebrew
-    he: "מסלול שמע",
-    he1: "מסלול",
-    he2: "שמע",
 
     // Afrikaans
     af: "Audio spoor",
@@ -500,28 +497,46 @@ function findAudioTrackMenuItem(menuItems) {
 function findOriginalAudioOption(options) {
   if (!options?.length) return null;
 
-  // Use the originalTranslations object we already have
+  // First, try to find explicitly marked original tracks
   const originalTexts = Object.values(originalTranslations).map((value) =>
     typeof value === "object" ? value.original : value
   );
 
-  // Add some common variations
   const additionalVariations = [
     "original",
     "original sound",
     "original audio",
     "source",
     "default",
+    "(Original)", // Add explicit markers
+    "English (Original)", // Common YouTube format
+    "English (United States) (Original)",
   ];
 
   const allTexts = [...new Set([...originalTexts, ...additionalVariations])];
 
+  // First pass: Look for explicit "original" marking
   for (const option of options) {
     const text = option?.textContent
       ?.replace(/\s+/g, " ")
       ?.trim()
       ?.toLowerCase();
+
     console.log("Checking audio option:", text);
+
+    // Check for explicit original markers
+    if (text?.includes("(original)")) {
+      console.log("Found explicit original audio option:", text);
+      return option;
+    }
+  }
+
+  // Second pass: Look for matches in our translation list
+  for (const option of options) {
+    const text = option?.textContent
+      ?.replace(/\s+/g, " ")
+      ?.trim()
+      ?.toLowerCase();
 
     if (
       allTexts.some(
@@ -529,19 +544,36 @@ function findOriginalAudioOption(options) {
           typeof origText === "string" && text?.includes(origText.toLowerCase())
       )
     ) {
-      console.log("Found original audio option:", text);
+      console.log("Found original audio option from translations:", text);
       return option;
     }
   }
 
-  // Fallback: Look for the first option if it might be original
-  // Often, the original track is the first option
+  // Third pass: Look for English tracks if no explicit original found
+  for (const option of options) {
+    const text = option?.textContent
+      ?.replace(/\s+/g, " ")
+      ?.trim()
+      ?.toLowerCase();
+
+    if (text?.includes("english")) {
+      console.log("Found English audio option as fallback:", text);
+      return option;
+    }
+  }
+
+  // Final fallback: First non-translated track
   if (options.length > 0) {
-    const firstOption = options[0];
-    const text = firstOption?.textContent?.trim().toLowerCase();
-    if (!text?.includes("translated") && !text?.includes("auto-generated")) {
-      console.log("Using first option as fallback:", text);
-      return firstOption;
+    for (const option of options) {
+      const text = option?.textContent?.trim().toLowerCase();
+      if (
+        !text?.includes("translated") &&
+        !text?.includes("auto-generated") &&
+        !text?.includes("auto-translate")
+      ) {
+        console.log("Using first non-translated option as fallback:", text);
+        return option;
+      }
     }
   }
 
@@ -549,53 +581,52 @@ function findOriginalAudioOption(options) {
 }
 
 function fixAudioTrack(settingsButton) {
-  if (!isExtensionEnabled) return;
+  if (!isExtensionEnabled || hasProcessedAudio) return;
+  hasProcessedAudio = true;
 
-  try {
-    settingsButton.click();
+  // Create and dispatch click events directly instead of using .click()
+  const clickEvent = new MouseEvent("click", {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+  });
 
-    // Reduced timeout to minimum viable delay
-    requestAnimationFrame(() => {
-      const menuItems = document.querySelectorAll(
-        ".ytp-panel-menu .ytp-menuitem"
-      );
+  // Queue all actions in a single animation frame for optimal performance
+  requestAnimationFrame(() => {
+    // Click settings
+    settingsButton.dispatchEvent(clickEvent);
 
-      const audioTrackItem = findAudioTrackMenuItem(menuItems);
+    // Force immediate menu update
+    document.body.offsetHeight; // Trigger reflow
 
-      if (!audioTrackItem) {
-        console.log("No audio track menu found");
-        closeMenu();
-        return;
-      }
+    // Find and click audio track menu
+    const menuItems = document.querySelectorAll(
+      ".ytp-panel-menu .ytp-menuitem"
+    );
+    const audioTrackItem = findAudioTrackMenuItem(menuItems);
 
-      audioTrackItem.dispatchEvent(
-        new MouseEvent("click", {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-        })
-      );
+    if (!audioTrackItem) {
+      closeMenu();
+      return;
+    }
 
-      // Use requestAnimationFrame instead of setTimeout
-      requestAnimationFrame(() => {
-        const audioOptions = document.querySelectorAll(
-          '.ytp-menuitem, .ytp-panel-menu .ytp-menuitem, [role="menuitem"]'
-        );
+    audioTrackItem.dispatchEvent(clickEvent);
 
-        const originalOption = findOriginalAudioOption(audioOptions);
+    // Force immediate menu update
+    document.body.offsetHeight; // Trigger reflow
 
-        if (originalOption) {
-          originalOption.click();
-        }
+    // Find and click original option
+    const audioOptions = document.querySelectorAll(
+      '.ytp-menuitem, .ytp-panel-menu .ytp-menuitem, [role="menuitem"]'
+    );
 
-        // Minimal delay before closing menu
-        requestAnimationFrame(closeMenu);
-      });
-    });
-  } catch (error) {
-    console.error("Error in fixAudioTrack:", error);
+    const originalOption = findOriginalAudioOption(audioOptions);
+    if (originalOption) {
+      originalOption.dispatchEvent(clickEvent);
+    }
+
     closeMenu();
-  }
+  });
 }
 
 function closeMenu() {
@@ -613,15 +644,56 @@ function closeMenu() {
 }
 
 function startObserving() {
-  checkExtensionStatus((enabled) => {
-    if (enabled) {
-      window.youtubeOriginalAudioObserver = waitForElement(
-        ".ytp-settings-button",
-        fixAudioTrack
+  if (hasProcessedAudio) return;
+
+  // Try to process immediately if player exists
+  const player = document.querySelector(".html5-video-player");
+  const settingsButton = document.querySelector(".ytp-settings-button");
+
+  if (player && settingsButton) {
+    fixAudioTrack(settingsButton);
+    return;
+  }
+
+  // Use a more aggressive observer configuration
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      const settingsButton = mutation.target.querySelector?.(
+        ".ytp-settings-button"
       );
+      if (settingsButton) {
+        observer.disconnect();
+        fixAudioTrack(settingsButton);
+        return;
+      }
     }
   });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: false,
+    characterData: false,
+  });
+
+  window.youtubeOriginalAudioObserver = observer;
 }
 
-// Start observing when the content script loads
-startObserving();
+// Optimize the initialization process
+function handlePlayerInit() {
+  hasProcessedAudio = false;
+  // Use requestAnimationFrame for better performance
+  requestAnimationFrame(startObserving);
+}
+
+// Add more event listeners to catch the video player as early as possible
+window.addEventListener("yt-navigate-start", () => {
+  hasProcessedAudio = false;
+});
+
+window.addEventListener("yt-navigate-finish", handlePlayerInit);
+window.addEventListener("yt-page-data-updated", handlePlayerInit);
+window.addEventListener("loadeddata", handlePlayerInit, true);
+
+// Initial check when script loads
+handlePlayerInit();
